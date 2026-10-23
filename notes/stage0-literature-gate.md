@@ -1,4 +1,4 @@
-# Stage 0 literature gate — Project B (reformulated)
+# Stage 0 literature check — Track 1
 
 *Siddharth Chundru · 23 October 2026*
 
@@ -10,7 +10,7 @@
 
 | Work | What it does | Overlap | Consequence |
 | --- | --- | --- | --- |
-| [Du et al., 2024](https://arxiv.org/abs/2406.15917) ("To Err is Robotic", Stanford) | A diffusion policy trained on demonstrations samples candidate actions. A value function trained on the same demonstrations detects slower-than-expected progress, the robot backs off, records the failure state, and resamples candidates that move away from recorded mistakes. No gradient updates at test time. Simulated and real Franka tasks. | **Very high** for the proposed adapter: stall trigger + non-parametric memory + gradient-free reselection among base-policy modes. | The adapter is not new as a method. Use this as a **baseline mechanism** ("failure-avoidance resampling"). It notes that the method cannot add strategies the base policy lacks, so recovery depends on the base policy still having alternative modes, which motivates Project A. |
+| [Du et al., 2024](https://arxiv.org/abs/2406.15917) ("To Err is Robotic", Stanford) | A diffusion policy trained on demonstrations samples candidate actions. A value function trained on the same demonstrations detects slower-than-expected progress, the robot backs off, records the failure state, and resamples candidates that move away from recorded mistakes. No gradient updates at test time. Simulated and real Franka tasks. | **Very high** for the proposed adapter: stall trigger + non-parametric memory + gradient-free reselection among base-policy modes. | The adapter is not new as a method. Use this as a **baseline mechanism** ("failure-avoidance resampling"). It notes that the method cannot add strategies the base policy lacks, so recovery depends on the base policy still having alternative modes, which motivates `self-generated-experience`. |
 | [Razmjoo et al., 2025](https://arxiv.org/abs/2503.15386) (CCDP) | Conditions a diffusion policy on features of past failed actions as negative guidance, steering sampling away from failed regions. | High. | A second failure-avoidance mechanism. |
 | [Alfarra et al., 2026](https://arxiv.org/abs/2610.20318) (TEMPO, 14 Oct 2026) | Reward-free test-time adaptation of locomotion policies: actor updates driven by a frozen critic, entropy regularisation, a prioritised memory of hard observations. Go1, Go2, G1 in simulation; on-device on a real Go2. | High for "test-time adaptation of a pretrained policy". | Gradient-based. Represents the "fine-tune at deployment" family; a small analogue is a baseline. |
 | [Liu et al., 2026](https://arxiv.org/abs/2609.36720) (T²Mem, Stanford, 29 Sep 2026); [Jiang et al., 2026](https://research.nvidia.com/labs/gear/robottt/) (RoboTTT, NVIDIA/Stanford/UT Austin) | Test-time-training memory for VLA policies: history compressed into fast weights updated by self-supervised gradient steps during deployment. T²Mem targets memory-dependent manipulation; RoboTTT extends context to 8K timesteps and shows qualitative recovery from mid-episode perturbations. | Medium–high. The current frontier version of "memory that learns at test time". | Neither characterises perseveration or decay. A small fast-weight memory is a baseline mechanism; the frontier relevance is why the question matters. |
@@ -24,14 +24,14 @@
 
 1. **Behavioural dynamics of test-time adaptation.** Current work reports success after a shift. None I found measures *how* mechanisms adapt: perseveration immediately after a change, time to abandon a failed strategy, reversal when the original strategy works again, and cost when nothing changes. These are the habit battery's tests, recast as diagnostics.
 2. **Mechanism comparison on equal footing.** Gradient fine-tuning, fast-weight memory, retrieval and success-memory steering, failure-avoidance resampling, and plastic (use-dependent, decaying) memory have not been compared on the same pretrained policies under the same perturbations.
-3. **Dependence on the base policy's repertoire.** Du et al. rely on the base policy's diverse modes but do not vary them. Project A produces policies whose repertoire differs in a controlled way.
+3. **Dependence on the base policy's repertoire.** Du et al. rely on the base policy's diverse modes but do not vary them. `self-generated-experience` trains policies under practice conditions predicted to differ in repertoire.
 
-## Decision and reformulation
+## Implications for this project
 
-Recast Project B from "a new adapter" to "**a behavioural characterisation of how test-time adaptation mechanisms perseverate and recover**", with the plastic memory as one mechanism, motivated by IDSM and homeostatic plasticity.
+The project is framed as **a behavioural characterisation of how test-time adaptation mechanisms perseverate and recover**, with a plastic memory as one mechanism among several, motivated by IDSM and homeostatic plasticity.
 
 - **Mechanisms (small analogues, same frozen PointMaze policies):** frozen policy; online gradient fine-tuning; fast-weight memory (TTT-style); non-parametric retrieval; failure-avoidance resampling (Du et al.-style); plastic attention memory, with ablations of use-dependent reinforcement, decay and gating.
-- **Diagnostics:** perseveration after a route block, time to switch, reversal after unblocking, decay of the abandoned strategy, cost when nothing changes, and dependence on the base policy's repertoire (from Project A).
+- **Diagnostics:** perseveration after a route block, time to switch, reversal after unblocking, decay of the abandoned strategy, cost when nothing changes, and dependence on the base policy's repertoire (from `self-generated-experience`).
 - **Hypothesis to pre-register:** mechanisms trade speed of switching against stability and reversal. Use-dependent memory with decay is predicted to perseverate briefly but reverse well; failure-avoidance is predicted to switch fast but not return. Speculative until tested.
 - **IDSM's role:** source of the plastic mechanism and a one-off reference reproduction. Not the subject.
 
