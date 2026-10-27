@@ -2,13 +2,21 @@
 
 **Working title:** Switching, Recalibrating or Relearning? Kinds of Test-Time Adaptation in Robot Policies
 **Repository:** `switch-or-recalibrate`
-**Version:** 0.4 · 26 October 2026 · supersedes v0.3 (26 October 2026)
+**Version:** 0.4.1 · 27 October 2026 · supersedes v0.4 (26 October 2026)
 
 This document is the reference for implementation. Every number is a planning default or a hypothesis until the pilot fixes it. Hypotheses are labelled HB1–HB7, and mechanisms by short names, to avoid clashes with the labels in [self-generated-experience](https://github.com/siddharthchundru/self-generated-experience) ("Project A" below).
 
 ---
 
-## 0. Changes in v0.4 and the reasons for them
+## 0. Changes in v0.4.1 and v0.4, and the reasons for them
+
+**v0.4.1 (27 October 2026)** positions the project against repertoire-based damage recovery, after a literature check and an independent audit.
+1. **Prior work.** Intelligent Trial and Error (Cully et al., 2015), Reset-free Trial and Error (Chatzilygeroudis et al., 2018) and adaptive prior selection (Kaushik et al., 2020) are added to Section 2. They are gradient-free but search an explicit repertoire using a task-performance signal, so the novelty claims as worded stand. T-resilience (Koos, Cully & Mouret, 2013) is credited as an early use of predicted-versus-observed mismatch for damage recovery.
+2. **The thesis table is scoped to the point mass.** Intelligent Trial and Error recovers from body damage by *switching* to another stored behaviour. In a 2-D point mass there is no other way to move, so "graded body change → recalibrating" holds only at rung 1 (Section 1, Section 4).
+3. **A repertoire-search reference.** "Map-guided trial and error", a small analogue of Intelligent Trial and Error over the base policy's own behaviours, is added to Track 1 in Stage 3 and is required before rung 2 (Section 7.2, Section 10).
+4. **Store-and-select's lineage** now includes adaptive prior selection as a robotics precedent (Section 7.5).
+
+**v0.4 (26 October 2026)**
 
 v0.4 follows an external review of v0.3. The review found that the link between some update rules, the signals that drive them and the behaviour they are meant to restore was underspecified, and in one case inconsistent. Each change below says what changed and why.
 
@@ -38,6 +46,8 @@ A pretrained robot policy is deployed, and something changes. There are three ki
 | **Reversal** | Action inversion (the sign of one or both axes flipped) | **Relearning**: acquiring a new controller. The relation between command and outcome changes direction. |
 
 The first column describes the change. Whether a mechanism actually recalibrated or relearned is judged by what it does, using behavioural signatures (below), not assumed from the perturbation.
+
+**The mapping from change to adaptation is specific to the point mass.** A body with several ways of moving can meet damage by switching to another stored behaviour: Intelligent Trial and Error recovers a damaged hexapod by searching a repertoire of gaits (Cully et al., 2015). In a 2-D point mass there is no alternative way to move, so a body change can only be met by recalibrating or relearning. At rung 2 the table becomes a hypothesis about which kind of adaptation each mechanism uses, not a property of the change (Section 4).
 
 **Why reversal is separate.** In human motor learning, gains, offsets and rotations are handled by error-based adaptation: fast, and leaving aftereffects when the perturbation is removed. Mirror reversal is learned de novo instead: slower, with no aftereffects, and error-based adaptation can even act in the wrong direction (Yang, Cowan & Haith, eLife 2021; Telgen et al., J. Neurosci 2014). Treating inversion as recalibration would merge two different problems.
 
@@ -70,17 +80,19 @@ The Track 1 literature check is in [`notes/stage0-literature-gate.md`](../notes/
 - Gradient-free steering by retrieval: [Retrieve-then-Steer](https://arxiv.org/abs/2605.10094), [RESETTLE](https://arxiv.org/abs/2610.12185).
 - A stall trigger plus resampling away from past failures: [Du et al., 2024](https://arxiv.org/abs/2406.15917).
 - Gradient-free, forward-only adaptation that aligns activation statistics, in image classification: [FOA](https://arxiv.org/abs/2404.01650).
+- Repertoire-based damage recovery, gradient-free but driven by a task-performance signal: a behaviour map built by MAP-Elites before deployment and searched by Bayesian optimisation after damage ([Intelligent Trial and Error, Cully et al., 2015](https://arxiv.org/abs/1407.3501)); the same without resets, with a model correcting each stored behaviour's predicted outcome ([Reset-free Trial and Error, Chatzilygeroudis, Vassiliades & Mouret, 2018](https://arxiv.org/abs/1610.04213)); and selection among several repertoires built for different anticipated situations ([adaptive prior selection, Kaushik, Desreumaux & Mouret, 2020](https://arxiv.org/abs/1907.07029)).
 - Local gain-and-bias adaptation of single units toward a target activity distribution (intrinsic plasticity): Triesch, 2005.
 
 **Not claimed as new:**
 - Reward-free adaptation of frozen robot policies to body changes.
-- Using the mismatch between commanded and observed motion as the adaptation signal. The contingency monitor follows Lee et al. and SCOUT.
+- Using the mismatch between commanded and observed motion as the adaptation signal. The contingency monitor follows Lee et al. and SCOUT, and the idea goes back at least to T-resilience ([Koos, Cully & Mouret, 2013](https://arxiv.org/abs/1302.0386)), which recovered from damage by avoiding behaviours whose observed outcome disagreed with a self-model's prediction.
+- Gradient-free recovery from body damage as such. Repertoire-based methods (above) already do this.
 - Intrinsic plasticity, or aligning activation statistics at test time, as such.
 
 **What none of them does, as far as the checks found.**
-1. Adapt a frozen pretrained control policy with **no deployment-time gradients and no meta-training**, using local homeostatic or ultrastable rules. The directed rule uses no learned component beyond the policy itself. The Homeostat, the error-based family and Store-and-select use one linear forward model of the unperturbed body, fitted once before deployment and shared with every mechanism that uses it.
+1. Adapt a frozen pretrained control policy with **no deployment-time gradients and no meta-training**, using local homeostatic or ultrastable rules, with **no task-performance signal and no pre-built repertoire**. The directed rule uses no learned component beyond the policy itself. The Homeostat, the error-based family and Store-and-select use one linear forward model of the unperturbed body, fitted once before deployment and shared with every mechanism that uses it.
 2. Characterise the behavioural dynamics of adaptation.
-3. Separate switching, recalibrating and relearning, and test the last two by signature.
+3. Separate switching, recalibrating and relearning, and test the last two by signature. As far as the checks found, none of the repertoire-based work undoes the damage to look for aftereffects or savings.
 
 **Contributions, in priority order.**
 1. **Track 2 (method): homeostatic test-time adaptation (HTA).** Gated, gradient-free plasticity in a frozen pretrained policy, with each monitor paired with the parameters it can move. Novelty is provisional until the full Track 2 literature check passes. HTA has to be shown competitive with gradient methods on at least some body changes. Otherwise it is framed honestly as a cheap first response that comes before gradient adaptation.
@@ -114,7 +126,7 @@ HB3, HB5, HB6 and HB7 are the most speculative. Clear nulls, shown by equivalenc
 | Rung | Environment | Use | Status |
 | --- | --- | --- | --- |
 | 1 | PointMaze M1 and M2 (shared with Project A); M0 for tuning | Both tracks; minimum viable experiments | Minimum viable experiment |
-| 2 | A legged body (AntMaze or a MuJoCo locomotion task) | Generality | **Deferred and to be costed.** Project A does not produce legged base policies, and goal-conditioned supervised learning is weak on AntMaze. Base policies would need a separate source. |
+| 2 | A legged body (AntMaze or a MuJoCo locomotion task) | Generality | **Deferred and to be costed.** Project A does not produce legged base policies, and goal-conditioned supervised learning is weak on AntMaze. Base policies would need a separate source. **Required before rung 2:** a repertoire-switching comparator for body changes (map-guided trial and error, Section 7.2), and a way to tell a stored but previously unused gait from new movement in the behavioural labels (Section 8.3), which are fitted only on behaviour used before the change. |
 | 3 | A public pretrained locomotion policy | Track 2 at realistic scale | Later. Competing methods are tested on real legged robots and large policies, so rung 2 or 3 is needed for a main-venue paper. |
 
 The simulator version is frozen before this project starts. If Project A falls back to its NumPy simulator, this project uses the same one.
@@ -185,6 +197,7 @@ Seeds are nested: each mechanism runs several deployment seeds on each base-poli
 | **IDSM residual** (habit) | A faithful Iterant Deformable Sensorimotor Medium (Egbert & Barandiaran, 2014) layered on the frozen policy. It records sensorimotor nodes along the trajectory, reinforces them by revisiting, lets them decay, and adds a residual motor term. Predicted to persist under world changes, and to re-enact rather than recalibrate under body changes. | Own trajectory | Yes | Screen |
 | HabitMem−R, −D, −G | HabitMem without reinforcement, without decay, without gating (retrieval always on) | As above | Yes | Track 1 ablations |
 | **VISSA hybrid** (habit–homeostat hybrid) | IDSM extended with a local (1+1) evolution strategy that changes nodes when the sensorimotor pattern stops being viable (Egbert, 2022). The habit family's route to switching through a viability signal. Reported separately; not counted in a family for HB5. | Own trajectory, viability score | Yes | Screen |
+| **Map-guided trial and error** (reference) | Small analogue of Intelligent Trial and Error (Cully et al., 2015). Before deployment, build a map from the frozen policy: command each of a set of via-cell waypoints, then the goal, and record success and time (the waypoint is the behaviour descriptor). After a stall, choose waypoints by Gaussian-process upper-confidence-bound search, with the map as the prior mean. The canonical gradient-free switching method, and it exploits exactly the repertoire that HB4 varies. Uses a task-performance signal (disclosed). | Map, stall, success and time per trial | Yes | Stage 3 |
 | FastWeight | Linear fast-weight layer updated by a self-supervised or Hebbian rule (small test-time-training analogue) | Own trajectories | No (local gradient) or yes (Hebbian) | Stage 4 |
 | SuccessSteer | Bias sampling toward retrieved successful segments | Own records, success flag | Yes | Stage 4 |
 
@@ -233,7 +246,7 @@ HTA uses statistics from unperturbed rollouts; Renorm does not. This difference 
 
 | Name | Mechanism | Signals used | Gradient-free | Stage |
 | --- | --- | --- | --- | --- |
-| **Store-and-select** (hybrid) | A small library of interface settings (M_k, c_k), starting with the identity. Each entry implies a model of the body, v̂_k = F(M_k⁻¹ · (a_env − c_k)), so every entry can be scored against recent (a_env, v_obs) pairs, including entries not in use. If the best-scoring entry's error is within range, it is selected. If no entry is within range, the Homeostat's random search runs from the current entry; when the relation stays in range for T steps, the result is stored as a new entry. Capacity is small (default 4); the least-used entry is evicted. After modular and contextual-inference accounts of motor memory (Wolpert & Kawato, 1998; Haruno, Wolpert & Kawato, 2001; Heald, Lengyel & Wolpert, 2021). | Command–outcome relation, forward model | Yes | Screen |
+| **Store-and-select** (hybrid) | A small library of interface settings (M_k, c_k), starting with the identity. Each entry implies a model of the body, v̂_k = F(M_k⁻¹ · (a_env − c_k)), so every entry can be scored against recent (a_env, v_obs) pairs, including entries not in use. If the best-scoring entry's error is within range, it is selected. If no entry is within range, the Homeostat's random search runs from the current entry; when the relation stays in range for T steps, the result is stored as a new entry. Capacity is small (default 4); the least-used entry is evicted. After modular and contextual-inference accounts of motor memory (Wolpert & Kawato, 1998; Haruno, Wolpert & Kawato, 2001; Heald, Lengyel & Wolpert, 2021). The robotics precedent for choosing among stored priors online is adaptive prior selection (Kaushik, Desreumaux & Mouret, 2020); its exact selection rule is to be checked against the full text in Stage 0b. | Command–outcome relation, forward model | Yes | Screen |
 
 **Predictions.** On first exposure to reversal it behaves like the Homeostat: slow. When the reversal is undone, the identity entry scores best again and is selected, so there is no aftereffect beyond the selection latency. On re-exposure, the stored inverted entry is selected, so re-adaptation is much faster than on first exposure. Under graded changes the same pattern is predicted, so Store-and-select also tests whether storage changes the aftereffect for recalibration.
 
@@ -341,10 +354,10 @@ Windows labelled imposed are reported as their own category. Each category is re
 | Stage | Work | Gate |
 | --- | --- | --- |
 | 0a | Literature check, Track 1 ✔ | ✔ |
-| 0b | Literature check, Track 2. Preliminary pass done 26 October 2026. Remaining: full texts of Di Paolo (2000) and Iizuka & Di Paolo (2008), especially how the coupling between internal stability and behaviour was obtained; Lee et al. (2026), SCOUT and FOA; plasticity applied to pretrained deep policies (2023–26); modular and contextual-inference motor memory as applied to robot control; GRACE (arXiv 2607.21661); re-check Track 1 against September–October 2026 papers. | HTA not already published for control policies |
+| 0b | Literature check, Track 2. Preliminary pass done 26 October 2026. Remaining: full texts of Di Paolo (2000) and Iizuka & Di Paolo (2008), especially how the coupling between internal stability and behaviour was obtained; Lee et al. (2026), SCOUT and FOA; plasticity applied to pretrained deep policies (2023–26); modular and contextual-inference motor memory as applied to robot control; repertoire-based damage recovery (full texts of Chatzilygeroudis et al., 2018 and Kaushik et al., 2020); GRACE (arXiv 2607.21661); re-check Track 1 against September–October 2026 papers. | HTA not already published for control policies |
 | 1 | **Check, build and screen** on rung 1 with the demonstrations-only base policy: shared forward model and action interface; the two mechanistic checks (Section 7.3); every "Screen" mechanism plus references; 10 seeds | Some homeostatic mechanism recovers measurably more than Frozen and Renorm on a graded body change. Otherwise Track 2 is parked and Track 1 proceeds. |
 | 2 | Track 2 main: selected mechanisms, Store-and-select, coupling objectives, ablations, aftereffects and savings, behavioural characterisation, pre-registered run | HB1, HB2, HB6, HB7 decided |
-| 3 | Track 1 (Frozen, FineTune, kNN, FailAvoid, selected habit mechanisms, VISSA if selected, ablations, repertoire manipulation) on all three base policies; sweeps; battery; characterisation | HB3 and HB4 decided |
+| 3 | Track 1 (Frozen, FineTune, kNN, FailAvoid, map-guided trial and error, selected habit mechanisms, VISSA if selected, ablations, repertoire manipulation) on all three base policies; sweeps; battery; characterisation | HB3 and HB4 decided |
 | 4 | Joint family × change-type design (HB5); FastWeight and SuccessSteer if warranted; rung 2 if costed; report | — |
 
 **Order:** Project A's minimum viable experiment → 0b → 1, then 2 and 3 as the results warrant.
