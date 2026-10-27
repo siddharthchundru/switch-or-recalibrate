@@ -3,7 +3,7 @@
 Kinds of test-time adaptation in pretrained robot policies.
 
 > **Status: design stage.**
-> - Done: the literature check for Track 1; a preliminary literature check for Track 2; the full design (spec v0.4, revised after an external review of v0.3).
+> - Done: the literature check for Track 1; a preliminary literature check for Track 2; the full design (spec v0.4.1).
 > - Next: implementation, which builds on the harness in [self-generated-experience](https://github.com/siddharthchundru/self-generated-experience), then the full Track 2 literature check before any pre-registration.
 > - There is no code and there are no results yet.
 
@@ -39,10 +39,11 @@ Test-time adaptation of robot policies is moving fast, with several of the close
 - fast-weight memories updated during deployment ([Liu et al., 2026](https://arxiv.org/abs/2609.36720); [Jiang et al., 2026](https://research.nvidia.com/labs/gear/robottt/));
 - gradient-free retrieval and steering ([Zhao et al., 2026](https://arxiv.org/abs/2605.10094); [Chen et al., 2026](https://arxiv.org/abs/2610.12185));
 - resampling away from past failures ([Du et al., 2024](https://arxiv.org/abs/2406.15917)).
+- recovery from body damage by searching a pre-built repertoire of behaviours ([Cully et al., 2015](https://arxiv.org/abs/1407.3501); [Chatzilygeroudis et al., 2018](https://arxiv.org/abs/1610.04213)), and switching between a policy's learned modes when a path is blocked ([Li et al., 2024](https://arxiv.org/abs/2406.00681)).
 
-So reward-free adaptation to body changes, using the command–outcome mismatch as the signal, and local gain-and-bias plasticity on its own are **not** new, and this project does not claim them. As far as the checks so far found, what is open is:
+So reward-free adaptation to body changes, gradient-free recovery from damage by searching a repertoire, using the command–outcome mismatch as the signal, and local gain-and-bias plasticity on its own are **not** new, and this project does not claim them. As far as the checks so far found, what is open is:
 
-1. adapting a frozen pretrained control policy with **no deployment-time gradients and no meta-training**, using local homeostatic rules. One rule needs nothing beyond the policy itself; the others use a single linear model of the unperturbed body, fitted once before deployment and shared with the baselines;
+1. adapting a frozen pretrained control policy with **no deployment-time gradients and no meta-training**, using local homeostatic rules, with no task-performance signal and no pre-built repertoire. One rule needs nothing beyond the policy itself; the others use a single linear model of the unperturbed body, fitted once before deployment and shared with the baselines;
 2. characterising **how** a robot adapts: how long it persists with a strategy that has stopped working, whether it returns when the original solution works again, what adapting costs when nothing has changed, and which new behaviours appear;
 3. separating switching, recalibrating and relearning, and testing the last two by their signatures.
 
@@ -52,7 +53,7 @@ The Track 1 literature check is in [`notes/stage0-literature-gate.md`](notes/sta
 
 The setting is two-dimensional maze navigation ([PointMaze](https://robotics.farama.org/envs/maze/point_maze/)). The base policies come from [self-generated-experience](https://github.com/siddharthchundru/self-generated-experience), trained under practice conditions predicted to differ in repertoire (measured, not assumed). A legged body is a planned later extension, not yet costed.
 
-**Track 1: switching under world changes.** A behavioural comparison, on the same frozen base policies, of online fine-tuning, non-parametric retrieval, failure-avoidance resampling, and habit mechanisms: a **habit memory** (an attention memory over the robot's own experience whose entries strengthen with use and fade with disuse), a residual version of the Iterant Deformable Sensorimotor Medium (Egbert & Barandiaran, 2014), and a hybrid that also changes a habit when it stops being viable (Egbert, 2022). For memory-based mechanisms, the repertoire available to them is also manipulated directly.
+**Track 1: switching under world changes.** A behavioural comparison, on the same frozen base policies, of online fine-tuning, non-parametric retrieval, failure-avoidance resampling, a small analogue of repertoire search after Cully et al. (2015), and habit mechanisms: a **habit memory** (an attention memory over the robot's own experience whose entries strengthen with use and fade with disuse), a residual version of the Iterant Deformable Sensorimotor Medium (Egbert & Barandiaran, 2014), and a hybrid that also changes a habit when it stops being viable (Egbert, 2022). For memory-based mechanisms, the repertoire available to them is also manipulated directly.
 
 **Track 2: recalibrating and relearning under body changes.** A proposed method, **homeostatic test-time adaptation**, with no reward and no gradients. Its central design rule, after Ashby: each monitor changes only parameters that can affect what it monitors.
 
@@ -105,7 +106,7 @@ Each stage ends in a gate that must pass before the next starts. Before a stage 
 
 ```
 notes/          literature check
-docs/spec.md    full design specification (v0.4)
+docs/spec.md    full design specification (v0.4.1)
 ```
 
 Code arrives with Stage 1.
